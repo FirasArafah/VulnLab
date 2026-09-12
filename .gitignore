@@ -1,0 +1,3 @@
+vuln_lab.db
+uploads/*
+!uploads/.gitkeep
