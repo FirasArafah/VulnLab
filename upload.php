@@ -7,15 +7,59 @@ if (!isset($_SESSION['username'])) {
 }
 
 $message = '';
+$alertType = 'info';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
     $target_dir = 'uploads/';
-    $target_file = $target_dir . basename($_FILES['file']['name']);
+    $originalName = basename($_FILES['file']['name']);
+    $target_file = $target_dir . $originalName;
+    $fileSize = $_FILES['file']['size'];
+    $tmpName = $_FILES['file']['tmp_name'];
 
-    if (move_uploaded_file($_FILES['file']['tmp_name'], $target_file)) {
-        $message = "The file has been uploaded. <a href='$target_file' target='_blank'>View file</a>";
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'docx'];
+    $allowedMimes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'application/pdf',
+        'text/plain',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ];
+
+    $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+    $maxSize = 2 * 1024 * 1024;
+
+    if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        $message = "Upload error. Please try again.";
+        $alertType = 'danger';
+    } elseif (!in_array($extension, $allowedExtensions, true)) {
+        $message = "File extension not allowed.";
+        $alertType = 'danger';
+    } elseif ($fileSize > $maxSize) {
+        $message = "File is too large (max 2 MB).";
+        $alertType = 'danger';
     } else {
-        $message = "Sorry, there was an error uploading your file.";
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime = finfo_file($finfo, $tmpName);
+        finfo_close($finfo);
+
+        if (!in_array($mime, $allowedMimes, true)) {
+            $message = "File MIME type not allowed.";
+            $alertType = 'danger';
+        } else {
+            $safeName = bin2hex(random_bytes(8)) . '.' . $extension;
+            $target_file = $target_dir . $safeName;
+
+            if (move_uploaded_file($tmpName, $target_file)) {
+                $safeLink = htmlspecialchars($target_file, ENT_QUOTES, 'UTF-8');
+                $message = "The file has been uploaded. <a href='$safeLink' target='_blank'>View file</a>";
+                $alertType = 'success';
+            } else {
+                $message = "Sorry, there was an error uploading your file.";
+                $alertType = 'danger';
+            }
+        }
     }
 }
 ?>
@@ -46,11 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['file'])) {
             </div>
             <div class="card-body">
                 <?php if ($message): ?>
-                    <div class="alert alert-info"><?php echo $message; ?></div>
+                    <div class="alert alert-<?php echo $alertType; ?>"><?php echo $message; ?></div>
                 <?php endif; ?>
                 <form method="post" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="file" class="form-label">Select file</label>
+                        <label for="file" class="form-label">Select file (allowed: jpg, jpeg, png, gif, pdf, txt, doc, docx – max 2 MB)</label>
                         <input type="file" class="form-control" id="file" name="file" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Upload</button>

@@ -10,7 +10,11 @@ $output = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ip'])) {
     $ip = $_POST['ip'];
 
-    $output = shell_exec("ping -c 4 " . $ip);
+    if (filter_var($ip, FILTER_VALIDATE_IP)) {
+        $output = shell_exec("ping -c 4 " . escapeshellarg($ip));
+    } else {
+        $output = "Invalid IP address.";
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -47,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ip'])) {
                 </form>
                 <?php if ($output !== ''): ?>
                     <h6>Result:</h6>
-                    <pre class="bg-dark text-light p-3 rounded"><?php echo $output; ?></pre>
+                    <pre class="bg-dark text-light p-3 rounded"><?php echo htmlspecialchars($output, ENT_QUOTES, 'UTF-8'); ?></pre>
                 <?php endif; ?>
             </div>
         </div>

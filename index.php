@@ -9,21 +9,31 @@ if (isset($_SESSION['username'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $user = $_POST['username'];
-    $pass = $_POST['password'];
+    $user = $_POST['username'] ?? '';
+    $pass = $_POST['password'] ?? '';
 
-    $db = new SQLite3('vuln_lab.db');
+    try {
+        $pdo = new PDO('sqlite:vuln_lab.db');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-    $query = "SELECT * FROM users WHERE username='$user' AND password='$pass'";
-    $result = $db->query($query);
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = :username AND password = :password");
+        $stmt->execute([
+            ':username' => $user,
+            ':password' => $pass
+        ]);
 
-    if ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-        $_SESSION['username'] = $row['username'];
-        $_SESSION['role'] = $row['role'];
-        header('Location: search.php');
-        exit;
-    } else {
-        $error = 'Invalid username or password.';
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($row) {
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = $row['role'];
+            header('Location: search.php');
+            exit;
+        } else {
+            $error = 'Invalid username or password.';
+        }
+    } catch (PDOException $e) {
+        $error = 'Database error.';
     }
 }
 ?>
@@ -45,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     <div class="card-body">
                         <?php if ($error): ?>
-                            <div class="alert alert-danger"><?php echo $error; ?></div>
+                            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
                         <?php endif; ?>
                         <form method="post">
                             <div class="mb-3">

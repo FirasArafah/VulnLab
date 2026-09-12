@@ -36,24 +36,29 @@ $q = isset($_GET['q']) ? $_GET['q'] : '';
             <div class="card-body">
                 <form method="get" class="mb-4">
                     <div class="input-group">
-                        <input type="text" class="form-control" name="q" placeholder="Search by name..." value="<?php echo $q; ?>">
+                        <input type="text" class="form-control" name="q" placeholder="Search by name..." value="<?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?>">
                         <button class="btn btn-outline-secondary" type="submit">Search</button>
                     </div>
                 </form>
 
                 <?php if ($q !== ''): ?>
                     <h5>Search results for:
-                        <!-- VULNERABILITY: Cross‑Site Scripting (XSS) -->
-                        <!-- User input echoed without htmlspecialchars() -->
-                        <span class="text-danger"><?php echo $q; ?></span>
+                        <span class="text-danger"><?php echo htmlspecialchars($q, ENT_QUOTES, 'UTF-8'); ?></span>
                     </h5>
                     <hr>
-                    <!-- Database query remains vulnerable to SQL injection (secondary) -->
                     <?php
-                    $db = new SQLite3('vuln_lab.db');
-                    $result = $db->query("SELECT username FROM users WHERE username LIKE '%$q%'");
-                    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-                        echo '<div class="list-group-item">' . htmlspecialchars($row['username']) . '</div>';
+                    try {
+                        $pdo = new PDO('sqlite:vuln_lab.db');
+                        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+                        $stmt = $pdo->prepare("SELECT username FROM users WHERE username LIKE :q");
+                        $stmt->execute([':q' => '%' . $q . '%']);
+
+                        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            echo '<div class="list-group-item">' . htmlspecialchars($row['username'], ENT_QUOTES, 'UTF-8') . '</div>';
+                        }
+                    } catch (PDOException $e) {
+                        echo '<div class="alert alert-danger">Database error.</div>';
                     }
                     ?>
                 <?php endif; ?>
